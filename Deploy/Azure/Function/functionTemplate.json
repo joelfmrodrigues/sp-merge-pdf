@@ -1,0 +1,417 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "userObjectId": {
+            "type": "string",
+            "metadata": {
+                "description": "Object Id of the AAD user or service principal. Available from the Get-AzADUser or the Get-AzADServicePrincipal cmdlets"
+            }
+        },
+        "spoTenantId": {
+            "type": "string",
+            "metadata": {
+                "description": "Id of the tenant associated with the SharePoint subscription - where the app is registered"
+            }
+        },
+        "authId": {
+            "type": "string",
+            "metadata": {
+                "description": "Username of the service account"
+            }
+        },
+        "authSecret": {
+            "type": "string",
+            "metadata": {
+                "description": "Password of the service account"
+            }
+        },
+        "appId": {
+            "type": "string",
+            "metadata": {
+                "description": "Application Id of the Azure AD app for delegated access"
+            }
+        },
+        "appName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the app"
+            }
+        },
+        "environment": {
+            "type": "string",
+            "metadata": {
+                "description": "Target environment"
+            }
+        },
+        "instanceNumber": {
+            "type": "string",
+            "metadata": {
+                "description": "App instance number"
+            }
+        },
+        "appServiceHostingEnvironment": {
+            "type": "string",
+            "metadata": {
+                "description": "Hosting environment (can be left blank)"
+            }
+        },
+        "appServiceTier": {
+            "type": "string",
+            "metadata": {
+                "description": "Service plan tier (For consumption plan use 'Dynamic')"
+            }
+        },
+        "appServiceSkuName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of sku for service plan (For consumption plan use 'Y1' as default)"
+            }
+        },
+        "appServiceWorkerSize": {
+            "type": "string",
+            "metadata": {
+                "description": "Worker size for service plan (For consumption plan use '0' as default)"
+            }
+        },
+        "appServiceWorkerSizeId": {
+            "type": "string",
+            "metadata": {
+                "description": "Worker size Id for service plan (For consumption plan use '0' as default)"
+            }
+        },
+        "appServiceNumberOfWorkers": {
+            "type": "string",
+            "metadata": {
+                "description": "Number of workers for service plan (For consumption plan use '1' as default)"
+            }
+        },
+        "functionWorkerRuntime": {
+            "type": "string",
+            "allowedValues": [
+                "node",
+                "dotnet",
+                "powershell"
+            ],
+            "metadata": {
+                "description": "The language worker runtime to load in the function app."
+            }
+        },
+        "functionWorkerRuntimeVersion": {
+            "type": "string",
+            "allowedValues": [
+                "~7"
+            ],
+            "metadata": {
+                "description": "The worker runtime version of the azure function."
+            }
+        },
+        "functionRuntimeVersion": {
+            "type": "string",
+            "allowedValues": [
+                "~1",
+                "~2",
+                "~3"
+            ],
+            "metadata": {
+                "description": "The runtime version of the function app."
+            }
+        },
+        "storageQueueName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the storage queue"
+            }
+        },
+        "keyVaultSecret_AuthId": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Auth Id secret in key vault"
+            }
+        },
+        "keyVaultSecret_AuthSecret": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Auth Secret secret in key vault"
+            }
+        },
+        "keyVaultSecret_AppId": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the App Id secret in key vault"
+            }
+        }
+    },
+    "variables": {
+        "appNameNoSpaces": "[replace(toLower(parameters('appName')), ' ', '')]",
+        "appNameNoSpacesAndDashes": "[replace(toLower(variables('appNameNoSpaces')), '-', '')]",
+        "storageAccountName": "[concat('st', variables('appNameNoSpacesAndDashes'), parameters('environment'), parameters('instanceNumber'))]",
+        "appInsightsName": "[concat('appi', '-', variables('appNameNoSpaces'), '-', parameters('environment'), '-', parameters('instanceNumber'))]",
+        "appServiceName": "[concat('plan', '-', variables('appNameNoSpaces'), '-', parameters('environment'), '-', parameters('instanceNumber'))]",
+        "functionName": "[concat('func', '-', variables('appNameNoSpaces'), '-', parameters('environment'), '-', parameters('instanceNumber'))]",
+        "keyVaultName": "[concat('kv', '-', variables('appNameNoSpaces'), '-', parameters('environment'), '-', parameters('instanceNumber'))]"
+    },
+    "resources": [
+
+        {
+            "comments": "Storage account",
+            "apiVersion": "2019-06-01",
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[variables('storageAccountName')]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+            },
+            "sku": {
+                "name": "Standard_LRS"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "supportsHttpsTrafficOnly": true
+            },
+            "resources": [
+                {
+                    "name": "[concat('default/', parameters('storageQueueName'))]",
+                    "type": "queueServices/queues",
+                    "apiVersion": "2019-06-01",
+                    "dependsOn": [
+                        "[variables('storageAccountName')]"
+                    ],
+                    "properties": {
+                        "metadata": {}
+                    }
+                }
+            ]
+        },
+        {
+            "comments": "App Insights",
+            "apiVersion": "2015-05-01",
+            "name": "[variables('appInsightsName')]",
+            "type": "Microsoft.Insights/components",
+            "kind": "web",
+            "location": "[resourceGroup().location]",
+            "tags": {
+            },
+            "properties": {
+                "ApplicationId": "[variables('functionName')]",
+                "Application_Type": "web"
+            }
+        },
+        {
+            "comments": "App Service",
+            "apiVersion": "2018-02-01",
+            "name": "[variables('appServiceName')]",
+            "type": "Microsoft.Web/serverfarms",
+            "location": "[resourceGroup().location]",
+            "kind": "",
+            "tags": {
+            },
+            "dependsOn": [
+            ],
+            "properties": {
+                "name": "[variables('appServiceName')]",
+                "workerSize": "[parameters('appServiceWorkerSize')]",
+                "workerSizeId": "[parameters('appServiceWorkerSizeId')]",
+                "numberOfWorkers": "[parameters('appServiceNumberOfWorkers')]",
+                "hostingEnvironment": "[parameters('appServiceHostingEnvironment')]"
+            },
+            "sku": {
+                "Tier": "[parameters('appServiceTier')]",
+                "Name": "[parameters('appServiceSkuName')]"
+            }
+        },
+        {
+            "comments": "Function",
+            "apiVersion": "2018-11-01",
+            "name": "[variables('functionName')]",
+            "type": "Microsoft.Web/sites",
+            "kind": "functionapp",
+            "location": "[resourceGroup().location]",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "tags": {
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Web/serverfarms/', variables('appServiceName'))]"
+            ],
+            "properties": {
+                "name": "[variables('functionName')]",
+                "siteConfig": {
+                    "appSettings": [
+                    ],
+                    "functionAppScaleLimit": "1"
+                },
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServiceName'))]",
+                "hostingEnvironment": "[parameters('appServiceHostingEnvironment')]",
+                "clientAffinityEnabled": true
+            },
+            "resources": [
+                {
+                    "apiVersion": "2018-11-01",
+                    "name": "Microsoft.ApplicationInsights.AzureWebSites",
+                    "type": "siteextensions",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Web/Sites', variables('functionName'))]"
+                    ],
+                    "properties": {
+                    }
+                },
+                {
+                    "apiVersion": "2018-11-01",
+                    "name": "authsettings",
+                    "type": "config",
+                    "properties": {
+                        "enabled": true,
+                        "unauthenticatedClientAction": "RedirectToLoginPage",
+                        "tokenStoreEnabled": false,
+                        "allowedExternalRedirectUrls": null,
+                        "defaultProvider": "AzureActiveDirectory",
+                        "clientId": "[parameters('appId')]",
+                        "issuer": "[concat('https://sts.windows.net/', parameters('spoTenantId') , '/')]",
+                        "allowedAudiences": [
+                            "[concat('api://', parameters('appId'))]"
+                        ]
+                    },
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/Sites/', variables('functionName'))]",
+                        "Microsoft.ApplicationInsights.AzureWebSites"
+                    ]
+                },
+                {
+                    "comments": "Function app settings",
+                    "name": "appsettings",
+                    "type": "config",
+                    "apiVersion": "2018-11-01",
+                    "tags": {
+                    },
+                    "properties": {
+                        "FUNCTIONS_EXTENSION_VERSION": "[parameters('functionRuntimeVersion')]",
+                        "FUNCTIONS_WORKER_RUNTIME": "[parameters('functionWorkerRuntime')]",
+                        "FUNCTIONS_WORKER_RUNTIME_VERSION": "[parameters('functionWorkerRuntimeVersion')]",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(concat('Microsoft.Insights/components/',variables('appInsightsName')), '2015-05-01').InstrumentationKey]",
+                        "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(concat('Microsoft.Insights/components/',variables('appInsightsName')), '2015-05-01').ConnectionString]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=',variables('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value,';EndpointSuffix=','core.windows.net')]",
+                        "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[concat('DefaultEndpointsProtocol=https;AccountName=',variables('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value,';EndpointSuffix=','core.windows.net')]",
+                        "WEBSITE_CONTENTSHARE": "[toLower(variables('functionName'))]",
+                        "WEBSITE_RUN_FROM_PACKAGE": 1,
+                        "WEBSITE_LOAD_USER_PROFILE": 1,
+                        "WEBSITE_TIME_ZONE": "GMT Standard Time",
+                        "AuthId": "[concat('@Microsoft.KeyVault(SecretUri=', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('keyVaultName'), parameters('keyVaultSecret_AuthId'))).secretUri,')')]",
+                        "AuthSecret": "[concat('@Microsoft.KeyVault(SecretUri=', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('keyVaultName'), parameters('keyVaultSecret_AuthSecret'))).secretUri,')')]",
+                        "AppId": "[concat('@Microsoft.KeyVault(SecretUri=', reference(resourceId('Microsoft.KeyVault/vaults/secrets', variables('keyVaultName'), parameters('keyVaultSecret_AppId'))).secretUri,')')]"
+                    },
+                    "dependsOn": [
+                        "[concat('Microsoft.Web/sites/', variables('functionName'))]",
+                        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+                        "[resourceId('microsoft.insights/components', variables('appInsightsName'))]",
+                        "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+                        "Microsoft.ApplicationInsights.AzureWebSites"
+                    ]
+                }
+            ]
+        },
+        {
+            "comments": "Key Vault",
+            "type": "Microsoft.KeyVault/vaults",
+            "name": "[variables('keyVaultName')]",
+            "apiVersion": "2016-10-01",
+            "location": "[resourceGroup().location]",
+            "tags": {
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/Sites', variables('functionName'))]"
+            ],
+            "scale": null,
+            "properties": {
+                "sku": {
+                    "family": "A",
+                    "name": "Standard"
+                },
+                "tenantId": "[subscription().tenantId]",
+                "accessPolicies": [
+                    {
+                        "tenantId": "[subscription().tenantId]",
+                        "objectId": "[parameters('userObjectId')]",
+                        "permissions": {
+                            "keys": [ "all" ],
+                            "secrets": [ "all" ],
+                            "certificates": [ "all" ]
+                        }
+                    },
+                    {
+                        "tenantId": "[subscription().tenantId]",
+                        "objectId": "[reference(resourceId('Microsoft.Web/sites', variables('functionName')), '2016-08-01', 'Full').identity.principalId]",
+                        "permissions": {
+                            "keys": [
+                            ],
+                            "secrets": [
+                                "Get",
+                                "Set"
+                            ],
+                            "certificates": [
+                                "Get"
+                            ]
+                        }
+                    }
+                ],
+                "enableSoftDelete": true,
+                "enabledForDeployment": false,
+                "enabledForDiskEncryption": false,
+                "enabledForTemplateDeployment": false
+            }
+        },
+        {
+            "comments": "Key Vault Auth Id",
+            "type": "Microsoft.KeyVault/vaults/secrets",
+            "name": "[concat(variables('keyVaultName'), '/', parameters('keyVaultSecret_AuthId'))]",
+            "apiVersion": "2016-10-01",
+            "location": "[resourceGroup().location]",
+            "scale": null,
+            "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+            ],
+            "properties": {
+                "attributes": {
+                    "enabled": true
+                },
+                "value": "[parameters('authId')]"
+            }
+        },
+        {
+            "comments": "Key Vault Auth Secret",
+            "type": "Microsoft.KeyVault/vaults/secrets",
+            "name": "[concat(variables('keyVaultName'), '/', parameters('keyVaultSecret_AuthSecret'))]",
+            "apiVersion": "2016-10-01",
+            "location": "[resourceGroup().location]",
+            "scale": null,
+            "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+            ],
+            "properties": {
+                "attributes": {
+                    "enabled": true
+                },
+                "value": "[parameters('authSecret')]"
+            }
+        },
+        {
+            "comments": "Key Vault App Id",
+            "type": "Microsoft.KeyVault/vaults/secrets",
+            "name": "[concat(variables('keyVaultName'), '/', parameters('keyVaultSecret_AppId'))]",
+            "apiVersion": "2016-10-01",
+            "location": "[resourceGroup().location]",
+            "scale": null,
+            "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+            ],
+            "properties": {
+                "attributes": {
+                    "enabled": true
+                },
+                "value": "[parameters('appId')]"
+            }
+        }
+    ],
+    "outputs": {
+    }
+}

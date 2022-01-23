@@ -1,0 +1,45 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "appServiceHostingEnvironment": {
+            "value": ""
+        },
+        "appServiceTier": {
+            "value": "Dynamic"
+        },
+        "appServiceSkuName": {
+            "value": "Y1"
+        },
+        "appServiceWorkerSize": {
+            "value": "0"
+        },
+        "appServiceWorkerSizeId": {
+            "value": "0"
+        },
+        "appServiceNumberOfWorkers": {
+            "value": "1"
+        },
+        "functionWorkerRuntime": {
+            "value": "dotnet"
+        },
+        "functionWorkerRuntimeVersion": {
+            "value": "~7"
+        },
+        "functionRuntimeVersion": {
+            "value": "~3"
+        },
+        "storageQueueName": {
+            "value": "merge-pdf"
+        },
+        "keyVaultSecret_AuthId": {
+            "value": "AuthId"
+        },
+        "keyVaultSecret_AuthSecret": {
+            "value": "AuthSecret"
+        },
+        "keyVaultSecret_AppId": {
+            "value": "AppId"
+        }
+    }
+}

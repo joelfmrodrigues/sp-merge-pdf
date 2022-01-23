@@ -1,0 +1,13 @@
+
+# Azure Functions artifacts
+bin
+obj
+appsettings.json
+local.settings.json
+
+#certificates
+Certificates/**
+!Certificates/README.md
+
+#local psfile for running local temp execution
+Deploy/deploy-run-loc.ps1

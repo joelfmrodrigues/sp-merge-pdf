@@ -1,0 +1,9 @@
+{
+  "SiteUrl": "https://contoso.sharepoint.com/sites/contoso",
+  "FolderPath": "https://contoso.sharepoint.com/sites/contoso/Shared%20Documents/Test",
+  "FileName": "result.pdf",
+  "FilesPathArray": [
+    "https://contoso.sharepoint.com/sites/contoso/Shared%20Documents/Test/file1.pdf",
+    "https://contoso.sharepoint.com/sites/contoso/Shared%20Documents/Test/file2.pdf"
+  ]
+}
